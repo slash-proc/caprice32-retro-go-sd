@@ -28,9 +28,16 @@ else
 $(error HOST_SDL must be 2 or 3 (got '$(HOST_SDL)'))
 endif
 
-HOST_PKG_CFLAGS := $(shell pkg-config --cflags $(HOST_SDL_PC) 2>/dev/null)
-HOST_PKG_LIBS   := $(shell pkg-config --libs $(HOST_SDL_PC) 2>/dev/null)
-# macOS sdl2.pc pulls -lSDL2main which wants SDL_main; we provide main() ourselves.
+HOST_PKG_CFLAGS := $(shell PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:/usr/local/lib/pkgconfig:$${PKG_CONFIG_PATH}" pkg-config --cflags $(HOST_SDL_PC) 2>/dev/null)
+HOST_PKG_LIBS   := $(shell PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:/usr/local/lib/pkgconfig:$${PKG_CONFIG_PATH}" pkg-config --libs $(HOST_SDL_PC) 2>/dev/null)
+# Fallback when pkg-config is a cross-toolchain stub (e.g. DevKitPro first in PATH).
+ifeq ($(HOST_PKG_LIBS),)
+ifeq ($(HOST_SDL),2)
+HOST_PKG_CFLAGS := $(shell sdl2-config --cflags 2>/dev/null)
+HOST_PKG_LIBS   := $(shell sdl2-config --libs 2>/dev/null)
+endif
+endif
+# macOS sdl2.pc / sdl2-config pulls -lSDL2main which wants SDL_main; we provide main() ourselves.
 HOST_PKG_LIBS   := $(filter-out -lSDL2main,$(HOST_PKG_LIBS))
 ifeq ($(HOST_PKG_LIBS),)
 $(warning pkg-config $(HOST_SDL_PC) not found — host link may fail. Install SDL$(HOST_SDL) devel package.)
@@ -42,10 +49,11 @@ HOST_DEFS := \
 	-DHOST_BUILD=1 \
 	-DHOST_SDL=$(HOST_SDL) \
 	-DHOST_SCALE=$(HOST_SCALE) \
+	-DHOST_APP_MAIN=$(CORE_ENTRY) \
 	-DSDL_MAIN_HANDLED=1 \
 	-DIS_LITTLE_ENDIAN \
-	-DGNW_DISABLE_COMPRESSION \
-	$(CORE_C_DEFS)
+	$(CORE_C_DEFS) \
+	-DGNW_DISABLE_COMPRESSION
 
 HOST_INCLUDES := \
 	-Ihost \
@@ -56,6 +64,7 @@ HOST_INCLUDES := \
 	-I$(HOST_INC_ROOT)/Core/Inc/porting \
 	-I$(HOST_INC_ROOT)/Core/Src/porting/lib \
 	-I$(HOST_INC_ROOT)/Core/Src/porting/lib/FatFs \
+	$(CORE_C_INCLUDES) \
 	$(HOST_PKG_CFLAGS)
 
 HOST_CFLAGS := -O2 -g -Wall -Wextra -std=c11 \
@@ -79,10 +88,15 @@ host: $(HOST_BIN)
 
 $(HOST_BIN): $(HOST_OBJS)
 	$(V)$(ECHO) [ LD HOST ] $@
-	$(V)$(HOST_CC) -o $@ $(HOST_OBJS) $(HOST_PKG_LIBS)
+	$(V)$(HOST_CC) -o $@ $(HOST_OBJS) $(HOST_PKG_LIBS) $(CORE_LDLIBS)
 
-# Explicit pattern under HOST_BUILD_DIR only (do not collide with sdk ARM rules).
+# Explicit patterns under HOST_BUILD_DIR only (do not collide with sdk ARM rules).
 $(HOST_BUILD_DIR)/src/%.o: src/%.c
+	$(V)mkdir -p $(dir $@)
+	$(V)$(ECHO) [ CC HOST ] $<
+	$(V)$(HOST_CC) $(HOST_CFLAGS) -MMD -MP -MF"$(@:%.o=%.d)" -c $< -o $@
+
+$(HOST_BUILD_DIR)/external/%.o: external/%.c
 	$(V)mkdir -p $(dir $@)
 	$(V)$(ECHO) [ CC HOST ] $<
 	$(V)$(HOST_CC) $(HOST_CFLAGS) -MMD -MP -MF"$(@:%.o=%.d)" -c $< -o $@

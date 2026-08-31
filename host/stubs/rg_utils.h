@@ -50,6 +50,28 @@ static inline size_t rg_strlcat(char *dst, const char *src, size_t size)
 #define strlcpy rg_strlcpy
 #define strlcat rg_strlcat
 
+static inline const char *rg_basename(const char *path)
+{
+    const char *name;
+    if (!path)
+        return ".";
+    name = strrchr(path, '/');
+    return name ? name + 1 : path;
+}
+
+static inline const char *rg_extension(const char *path)
+{
+    const char *ptr;
+    const char *ext;
+    if (!path)
+        return NULL;
+    ptr = rg_basename(path);
+    ext = strrchr(ptr, '.');
+    if (!ext)
+        return ptr + strlen(ptr);
+    return ext + 1;
+}
+
 #ifdef __cplusplus
 }
 #endif

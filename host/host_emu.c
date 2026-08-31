@@ -17,11 +17,14 @@
 #include "gw_lcd.h"
 #include "gw_audio.h"
 #include "gw_malloc.h"
+#include "gw_ofw.h"
 #include "odroid_system.h"
 #include "odroid_overlay.h"
 #include "odroid_settings.h"
+#include "odroid_display.h"
 #include "odroid_input.h"
 #include "odroid_audio.h"
+#include "rg_storage.h"
 #include "common.h"
 #include "rom_manager.h"
 #include "main.h"
@@ -38,6 +41,7 @@ cpumon_stats_t cpumon_stats;
 
 retro_emulator_file_t host_active_file;
 retro_emulator_file_t *ACTIVE_FILE = &host_active_file;
+static char host_rom_ext[16];
 
 pixel_t *framebuffer1;
 pixel_t *framebuffer2;
@@ -215,6 +219,19 @@ void host_set_rom_path(const char *path)
         strncpy(host_active_file.name, base ? base + 1 : path,
                 sizeof(host_active_file.name) - 1);
     }
+    {
+        const char *dot = strrchr(host_active_file.name, '.');
+        if (dot && dot[1]) {
+            size_t i;
+            strncpy(host_rom_ext, dot + 1, sizeof(host_rom_ext) - 1);
+            host_rom_ext[sizeof(host_rom_ext) - 1] = '\0';
+            for (i = 0; host_rom_ext[i]; i++) {
+                if (host_rom_ext[i] >= 'A' && host_rom_ext[i] <= 'Z')
+                    host_rom_ext[i] = (char)(host_rom_ext[i] - 'A' + 'a');
+            }
+            host_active_file.ext = host_rom_ext;
+        }
+    }
     FILE *f = fopen(path, "rb");
     if (f) {
         fseek(f, 0, SEEK_END);
@@ -222,6 +239,8 @@ void host_set_rom_path(const char *path)
         fclose(f);
         if (sz > 0)
             host_active_file.size = (uint32_t)sz;
+    } else {
+        perror("host: ROM stat");
     }
 }
 
@@ -829,6 +848,44 @@ void dtc_init(void) {}
 void *dtc_malloc(size_t size) { return malloc(size); }
 void *dtc_calloc(size_t count, size_t size) { return calloc(count, size); }
 size_t dtc_get_free_size(void) { return 64 * 1024; }
+
+odroid_display_scaling_t odroid_display_get_scaling_mode(void)
+{
+    return ODROID_DISPLAY_SCALING_FIT;
+}
+
+odroid_display_filter_t odroid_display_get_filter_mode(void)
+{
+    return ODROID_DISPLAY_FILTER_OFF;
+}
+
+uint8_t odroid_settings_cpu_oc_level_get(void)
+{
+    /* Non-zero: skip host paths that re-init audio for OC level 0. */
+    return 2;
+}
+
+bool rg_storage_get_adjacent_files(const char *path, char *prev_path, char *next_path)
+{
+    (void)path;
+    (void)prev_path;
+    (void)next_path;
+    return false;
+}
+
+bool get_ofw_is_mario(void) { return true; }
+bool get_ofw_is_zelda(void) { return false; }
+bool get_ofw_is_present(void) { return false; }
+uint32_t get_ofw_extflash_size(void) { return 0; }
+
+uint32_t buttons_get(void)
+{
+    return 0;
+}
+
+/* Caprice PSG path calls this via mixsnd(); host audio is filled from the
+ * frame loop instead (same empty stub as linux/amstrad). */
+void retro_audio_mix_batch(void) {}
 
 void wdog_refresh(void)
 {
