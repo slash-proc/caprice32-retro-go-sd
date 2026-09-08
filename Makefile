@@ -128,12 +128,19 @@ docker_shell:
 
 include host/Makefile.host
 
-.PHONY: print-PROJECT_KIND print-PACKED_BIN print-CORE_NAME print-DOCKER_IMAGE \
+.PHONY: print-PROJECT_KIND print-PACKED_BIN print-SIDECARS print-RO_BIN print-CORE_NAME print-DOCKER_IMAGE \
 	print-TARGET_ELF print-TARGET_MAP print-CORE_VERSION
 print-PROJECT_KIND:
 	@echo $(PROJECT_KIND)
 print-PACKED_BIN:
 	@echo $(PACKED_BIN)
+# The shared stage_release.py asks every project for RO_BIN: the extra
+# device file installed beside the packed binary. Empty here.
+# Extra device files installed beside PACKED_BIN, space separated.
+print-SIDECARS:
+	@echo $(SIDECARS)
+print-RO_BIN:
+	@echo $(RO_BIN)
 print-CORE_NAME:
 	@echo $(CORE_NAME)
 print-DOCKER_IMAGE:
