@@ -76,7 +76,7 @@ $(BUILD_DIR)/psg.o:           CFLAGS := $(CAP32_HOT_CFLAGS)
 $(BUILD_DIR)/main_amstrad.o:  CFLAGS := $(CAP32_HOT_CFLAGS)
 
 PACK_CORE := $(GNW_CORE_SDK)/tools/pack_core.py
-CORE_VERSION ?= $(shell git describe --tags --dirty 2>/dev/null || echo NOTAG)
+CORE_VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo 0.0.0)
 
 .PHONY: pack
 pack: $(TARGET_BIN) $(BUILD_DIR)/caprice32_core_itcm.bin $(PAD_LOGO) $(HEADER_LOGO)
