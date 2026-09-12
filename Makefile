@@ -151,3 +151,11 @@ print-TARGET_MAP:
 	@echo $(BUILD_DIR)/$(CORE_NAME)_core.map
 print-CORE_VERSION:
 	@echo $(CORE_VERSION)
+
+# --- dist ---------------------------------------------------------------------
+# Full-size box art, published beside the release; empty unless this project
+# ships any. Read by the shared CI and tolerated when absent.
+COVER_FULL ?=
+.PHONY: print-COVER_FULL
+print-COVER_FULL:
+	@echo $(COVER_FULL)
